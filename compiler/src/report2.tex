@@ -1,0 +1,65 @@
+\documentclass[a4paper,11pt]{jsarticle}
+
+
+% 数式
+\usepackage{amsmath,amsfonts}
+\usepackage{bm}
+\usepackage{physics}
+\usepackage{txfonts}
+% 画像
+\usepackage[dvipdfmx]{graphicx}
+%レイアウト
+\setlength{\textwidth}{\paperwidth}
+\addtolength{\textwidth}{-40truemm}
+\setlength{\textheight}{\paperheight}
+\addtolength{\textheight}{-45truemm}
+\setlength{\topmargin}{-10.4truemm}
+\setlength{\evensidemargin}{-5.4truemm}
+\setlength{\oddsidemargin}{-5.4truemm}
+\setlength{\headheight}{17pt}
+\setlength{\headsep}{10mm}
+\addtolength{\headsep}{-17pt}
+\setlength{\footskip}{5mm}
+
+
+\begin{document}
+
+\title{課題2:codegen　コード生成器}
+\author{22B30862　情報工学系　山口友輝}
+\date{\today}
+\maketitle
+\section{はじめに}  
+私は今回、XCのコード生成器を実装するために、codegen.cを拡張、修正した。レベル1,2は完成し、レベル3は途中まで実装できた。本レポートでは、中でも特徴的だった実装について述べたいと思う。
+\section{レベル1}
+\subsection{long型大域変数}  
+long型大域変数については、codegen\_dec関数内に大域変数宣言としてのコードを追加し、大域変数の値を使うときはripレジスタにロードすることで、大域変数を使えるようにした。
+\subsection{代入式}
+代入式については、codegen\_exp関数内で実装した。基本的な実装方法としては、右辺値をcodegen\_exp関数でスタックにプッシュし、左辺値は変数が大域変数であるか局所変数であるかを場合わけして、アドレスをスタックにプッシュした。そのあと、プッシュした値やアドレスをポップし、右辺値を左辺値のアドレスが表すメモリに注に代入した。また、スタックポインタを管理するために、右辺値の値が格納されているレジスタをプッシュすることにも気を付けた。
+\subsection{while文}
+while文の実装については、まず、while文が始まるときのラベル(WHILE\_START)にジャンプし、while文の条件式を満たさないときは、while文が終わる時のラベル(WHILE\_END)にジャンプし、ジャンプしなかったときはwhile文の処理をWHILE\_STARTに記述し、処理が終わったらWHILE\_STARTにジャンプというような方法で、実装した。\\
+\indent
+また、条件文が真であるか偽であるかの判別には0で初期化されたrsiレジスタが0を超えている場合は真、超えていない場合は偽として、考えた。この処理については後程記述する。
+\subsection{二項演算子(\textless,+,-)}
+二項演算子は基本的に、2つの子をcodegen\_exp関数によって、計算、プッシュし、その値をポップしてから処理を行った。+,-についてはポップした値をadd命令やsub命令で処理した後に、その値をスタックにプッシュした。これは、レベル2の二項演算子(*,/.)でも同様の流れで処理を実装している。\\
+\indent
+\textless については、式の左側の値が式の右側の値よりも小さかったら、rsiレジスタをインクリメントし、条件文が真になるようにした。レベル2の==演算子の処理も同様で、式の左の値と右の値が等しいときにrsiレジスタをインクリメントした。
+\section{レベル2}
+\subsection{if文、if-else文、return文}
+ifelse文については、if文の中身の式を評価し、rsiレジスタが0より大きければif文のラベルにジャンプ、rsiレジスタが0以下であればelse文のラベルにジャンプし、ジャンプ左kの処理が終わったら、ifelse文の終わりを表すラベルにジャンプした。 \\
+\indent
+return文の実装については、返り値をcodegen\_expによって計算し、その値をポップすることで実装した。
+\subsection{二項演算子(\textbar\textbar,\&\&)}
+\textbar\textbar については、式の左側の式と右側の式をそれぞれ処理することで、どちらかの式が正しければ、rsiレジスタがインクリメントされ、while文や、ifelse文で式の真偽を評価できるようになっている。\\
+\indent
+\&\&については、右側の式を処理してからrsiをデクリメントしてから、左側の式を処理することで、左右の式がどちらも真でないとrsiレジスタが1になっていないようにした。
+\section{レベル3}
+レベル3では単項演算子*の処理まで行えた。\\
+\indent
+基本的には*がついた式の右辺値の処理を行ってからアドレスや、そのアドレスが指すメモリ値を格納してからスタックにプッシュするという流れだが、二項演算子=の左辺値に*の式がある場合はraxレジスタに値をロードする代わりに*の式の右辺値をcodegen\_expで処理することで、実装した。\\
+\indent
+ポインタ型の足し算についても、TYPEKINDを利用して、実装を試みたが、こちらは上手くいかなかった。
+\section{考察}
+今回は使う値を全てスタックにプッシュしてからポップするという実装方針でコンパイラを作成したが、この処理方法だと、命令数が多くなり、無駄な実行時間がかかってしまう。実行時間がより早いコンパイラを作成するためには、このような余分な命令を減らすことで実現可能だと考えた。\\
+\indent
+しかし、今回の実装方法はスタックを最大限に用いることで機械的な実装が容易であった。これはスタックフレームを利用することの利点の1つだと考えた。
+\end{document}  

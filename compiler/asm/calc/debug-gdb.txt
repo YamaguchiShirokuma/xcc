@@ -1,0 +1,29 @@
+$ gdb ./b.out
+(gdb) b main       ❶ main関数にブレークポイントを設定
+Breakpoint 1 at 0x1139: file foo.s, line 7.
+(gdb) r            ❷ 実行開始
+Breakpoint 1, main () at foo.s:7       ❸ main関数の先頭で一時停止
+7		pushq %rbp
+(gdb) disas        ❹ 逆アセンブルする
+Dump of assembler code for function main:
+=> 0x0000555555555139 <+0>:	push   %rbp
+   0x000055555555513a <+1>:	mov    %rsp,%rbp
+   0x000055555555513d <+4>:	mov    $0x3,%ecx
+   0x0000555555555142 <+9>:	mov    $0x4,%edx
+   0x0000555555555147 <+14>:	add    %edx,%ecx
+   0x0000555555555149 <+16>:	lea    0x2ec0(%rip),%rdi        # 0x555555558010
+   0x0000555555555150 <+23>:	movslq %ecx,%rsi
+   0x0000555555555153 <+26>:	mov    $0x0,%al
+   0x0000555555555155 <+28>:	callq  0x555555555030 <printf@plt>   ❺ call命令を探してアドレスをコピペ 
+   0x000055555555515a <+33>:	leaveq 
+   0x000055555555515b <+34>:	retq   
+   0x000055555555515c <+35>:	nopl   0x0(%rax)
+End of assembler dump.
+(gdb) b *0x0000555555555155    ❻ call命令の番地にブレークポイントを設定
+Breakpoint 2 at 0x555555555155: file foo.s, line 15.
+(gdb) c            ❼ 実行を再開
+Breakpoint 2, main () at foo.s:15
+15		call  printf  ❽ call命令の直前で一時停止
+(gdb) p/x $rsp     ❾ %rspレジスタの値を表示
+$1 = 0x7fffffffdfc0   ❿ %rspの値が16の倍数であることを確認できた
+(gdb) quit

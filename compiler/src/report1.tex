@@ -1,0 +1,72 @@
+\documentclass[a4paper,11pt]{jsarticle}
+
+
+% 数式
+\usepackage{amsmath,amsfonts}
+\usepackage{bm}
+\usepackage{physics}
+\usepackage{txfonts}
+\usepackage{moreverb}
+\usepackage{url}
+\usepackage[legacycolonsymbols]{mathtools}
+
+% 画像
+\usepackage[dvipdfmx]{graphicx}
+%レイアウト
+\setlength{\textwidth}{\paperwidth}
+\addtolength{\textwidth}{-40truemm}
+\setlength{\textheight}{\paperheight}
+\addtolength{\textheight}{-45truemm}
+\setlength{\topmargin}{-10.4truemm}
+\setlength{\evensidemargin}{-5.4truemm}
+\setlength{\oddsidemargin}{-5.4truemm}
+\setlength{\headheight}{17pt}
+\setlength{\headsep}{10mm}
+\addtolength{\headsep}{-17pt}
+\setlength{\footskip}{5mm}
+
+
+\begin{document}
+
+\title{課題1 : XC-small再帰下降型構文解析器}
+\author{22B30862　情報工学系　山口友輝}
+\date{\today}
+\maketitle
+
+\section{はじめに}
+私は今回、XC-smallの再帰下降型構文解析器を実装するために、XC-smallがLL(1)文法でないことの証明と、xcc-small.cを修正することでparse\_translation\_unit関数とunparse\_AST関数を実装した。
+
+\section{LL(1)でないことの証明}
+\subsection{ラベル式と式文の衝突}
+$$A = Director(stetement,\ IDENTIFIER\ ":")$$
+$$B = Director(stetement,\ [exp]\ ";")$$
+と置いて、$A\cap B \neq \phi$を示すことで、LL(1)ではないことを示す。このとき、
+$$A = first(IDENTIFIER\ ":")$$
+$$A = \{IDENTIFIER\}$$
+また、
+$$B = first([exp]\ ";")$$
+$$B = \{INTEGER,\ CHARCTER,\ STRING,\ IDENTIFIER,\ "(", \ ";"\}$$
+よって、
+$$A\cap B = \{IDENTIFIER\} \neq \phi$$
+となるので、この部分はLL(1)ではない。
+\subsection{ぶらぶらelseの衝突}
+たとえばif(A) if(B) C else Dのような文があったときにif文の中にif-else文が入っているのか、if-else文の中にif文が入っているのかが判別できない。このように、statementのif文またはif-else文で書かれた文は構文木が一意に定まらないことがあるので、LL(1)ではない。
+\newpage
+\section{xcc-small.cの修正}
+\subsection{parse\_translation\_unit関数}
+parse\_translation\_unit関数を実装するにあたり、他の非終端記号のparseの関数（parse\_statementなど）も実装した。\\
+\indent
+それぞれの関数を実装する上での基本的な方針としては、ast = create\_AST("xxx", 0);によって、非終端記号のノードを作成し、子ノードのASTをastにadd\_AST関数によって付け足していき、構文木を構築した。子ノードの作成方法としては、xcc-smallの文法を参照し、それが終端記号ならconsume\_token関数で構文エラーを確認、トークンのポインタを1つ進めてから、子ノードを作成。非終端記号なら、その非終端記号に合った関数(parse\_*)によって子ノードを作成した。また、非終端記号のときの構文エラーの確認は、parse\_*が動いたときに現在のポインタのトークンが動かした関数に対応する非終端記号のfirst集合と一致するかを確認することで、構文エラーを処理した。また、非終端記号をどのように展開するかは、lookahead(1)で現在のポインタに対応するトークンを受け取り、switch文によって判断した。
+\subsection{unparse\_AST関数}
+この関数の実装方針としては、第一引数astのast\_typeを参照することで、どの非終端記号を処理するかを決定した。\\
+\indent
+それぞれの非終端記号を処理する際の基本方針としては、まず、printf\_ns(depth, "");によって、それぞれのネストの深さに応じたインデントを出力し、徐々に展開していったときに終端記号が期待されるトークンであったら出力、そうでなかったら、unparse\_error関数でプログラムを終了する。展開していったときに、非終端記号だったら、unparse\_AST関数を再帰敵に呼び出した。また、可読性向上のため、構文エラーの確認とトークンの出力を行う関数である、printf\_token(struct AST *ast, char *type)を用いた。この関数はast->ast\_typeとtypeが等しいときにtypeを出力、そうでないときにunparse\_error関数でプログラムを終了するという役割を果たしている。これによって、整数、文字、文字列、識別子以外の終端記号の構文エラー確認と出力を簡潔に行なった。これ以外の終端記号や、非終端記号の処理では構文エラーを検出し次第、unparse\_error関数を呼び出すようにした。\\
+\indent
+if文とif-else文の内部のstatement\{\}をつける方法としては、内部のstatementを展開したものがcompound\_statementの場合、\{\}が重複してしまうので、このときは\{\}をつけず、それ以外のときは\{\}をつけて出力するようにした。
+\section{考察}
+再帰下降型構文解析器は、機械的な文法に対しては非常に直感的かつ実装が容易である。今回のXC-smallの実装としては、構文木を構築することによる構文解析を行なったが、これにより、構文エラー検出を容易に行うことができ、エラー箇所を構文エラーのメッセージから確認することができる。さらに、再帰的な関数呼び出しにより、各構文要素を分割して処理できるため、デバッグが容易である。例えば、構文木の各ノードを追跡することで、どの部分でエラーが発生しているのかを迅速に特定できる。これにより、問題のある箇所を効率的に修正することができ、開発のスピードと品質が向上する。
+\section{感想}
+今回の実装を通じて、再帰下降型構文解析器の基本的な仕組みを深く理解することがでた。特に、XC-smallがLL(1)文法ではないために生じる複雑さに対処する際に、多くの学びがあった。
+
+
+\end{document}

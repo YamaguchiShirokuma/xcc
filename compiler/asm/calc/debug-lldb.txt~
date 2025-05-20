@@ -1,0 +1,44 @@
+% lldb ./b.out
+(lldb) b main
+Breakpoint 1: where = b.out`main, address = 0x0000000100003f8f
+(lldb) r
+Process 18363 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = breakpoint 1.1
+    frame #0: 0x0000000100003f8f b.out`main
+b.out`main:
+->  0x100003f8f <+0>: pushq  %rbp
+    0x100003f90 <+1>: movq   %rsp, %rbp
+    0x100003f93 <+4>: movl   $0x3, %ecx
+    0x100003f98 <+9>: movl   $0x4, %edx
+Target 0: (b.out) stopped.
+(lldb) di
+b.out`main:
+->  0x100003f8f <+0>:  pushq  %rbp
+    0x100003f90 <+1>:  movq   %rsp, %rbp
+    0x100003f93 <+4>:  movl   $0x3, %ecx
+    0x100003f98 <+9>:  movl   $0x4, %edx
+    0x100003f9d <+14>: addl   %edx, %ecx
+    0x100003f9f <+16>: leaq   0x405a(%rip), %rdi
+    0x100003fa6 <+23>: movslq %ecx, %rsi
+    0x100003fa9 <+26>: movb   $0x0, %al
+    0x100003fab <+28>: callq  0x100003fb2               ; symbol stub for: printf
+    0x100003fb0 <+33>: leave  
+    0x100003fb1 <+34>: retq   
+(lldb) b -a 0x100003fab
+Breakpoint 2: where = b.out`main + 28, address = 0x0000000100003fab
+(lldb) c
+Process 18363 resuming
+Process 18363 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = breakpoint 2.1
+    frame #0: 0x0000000100003fab b.out`main + 28
+b.out`main:
+->  0x100003fab <+28>: callq  0x100003fb2               ; symbol stub for: printf
+    0x100003fb0 <+33>: leave  
+    0x100003fb1 <+34>: retq   
+
+b.out`printf:
+    0x100003fb2 <+0>:  jmpq   *0x48(%rip)               ; (void *)0x00007ff809bedf25: printf
+Target 0: (b.out) stopped.
+(lldb) p/x $rsp
+(unsigned long) $0 = 0x00007ff7bfeff290
+(lldb) quit
